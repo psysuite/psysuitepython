@@ -13,4 +13,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "psysuitepython"
-include ':psysuitepython'
+include(":psysuitepython")
