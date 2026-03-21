@@ -1,10 +1,7 @@
-
-/buildSrc/build
-/buildSrc/.gradle
-
 *.iml
 .gradle
 /local.properties
+/.idea
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -17,5 +14,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+/buildSrc/build
+/buildSrc/.gradle
 
 OT/
