@@ -8,30 +8,28 @@ from adopy.tasks.psi import Task2AFC, ModelLogistic
 from adopy.tasks.psi import EnginePsi
 from scipy.stats import bernoulli
 
-# can use model-derived and externally-defined latencies
-# try (10 times) to avoid presenting stimuli within an exclusion_width large window
-class BISAdopyWrapper:
+
+# base class for temporal bisection task
+class BISADOpyWrapper:
 
     def __init__(self, adoparams=None, taskparams=None):
 
-        self.range      = taskparams.get("range", 700)
-        self.ntrials    = taskparams.get("ntrials", 50)
-        self.offset     = taskparams.get("offset", 0)
-        self.stim_min   = taskparams["min"]
-        self.exclusion_width = taskparams.get("exclusion_width", 40)  # Exclude ms around offset
+        self.min            = taskparams.get("min", 150)
+        self.max            = taskparams.get("max", 850)
+        self.ntrials        = taskparams.get("ntrials", 50)
+        self.offset         = taskparams.get("offset", 500)
+
+        self.range          = self.max - self.min
 
         self.guess_rate = adoparams["guess_rate"]
         self.lapse_rate = adoparams["lapse_rate"]
         self.noise_perc = adoparams["noise_perc"]
 
-        self.model_stim = []  # [{"stimulus":0} for i in range(self.ntrials)]
-        self.stimuli_q  = []  # [0 for i in range(self.ntrials)]
+        self.model_stim = []
+        self.stimuli_q  = []
         self.responses  = []
         self.stimuli_ms = []
         self.successes  = []
-
-        self.pre_offset_nstim  = 0
-        self.post_offset_nstim = 0
 
         self.task   = Task2AFC()
         self.model  = ModelLogistic()
@@ -39,8 +37,8 @@ class BISAdopyWrapper:
         # Create continuous stimulus design space (no exclusion zone)
         self.designs = {
             'stimulus': np.linspace(
-                self.offset - self.range/2,
-                self.offset + self.range/2,
+                self.min,
+                self.max,
                 200
             )
         }
@@ -48,81 +46,13 @@ class BISAdopyWrapper:
             'guess_rate': [self.guess_rate],
             'lapse_rate': [self.lapse_rate],
             'threshold' : np.linspace(
-                                    self.offset - self.range/2,  # Keep wide: encourages exploration
-                                    self.offset + self.range/2,  # ADOpy must explore to find true threshold
+                                    self.min,
+                                    self.max,
                                     200),
-            'slope'     : np.logspace(-2, 0, 200)  # 0.01 to 1.0, emphasizes shallow slopes
+            'slope'     : np.logspace(-2, 1, 200)  # 0.01 to 1.0, emphasizes shallow slopes
         }
 
         self.engine = EnginePsi(self.model, self.designs, self.params)
-
-    # get stimulus value in milliseconds
-    def get(self, addNoise=False):
-        """
-        continuous space + random + post-random exclusion of stimuli around offset latency.
-        """
-        model = self.engine.get_design("optimal")
-        stim_ms = model["stimulus"]
-
-        max_attempts = 10
-        for attempt in range(max_attempts):
-
-            if addNoise:
-                stim_ms += int((np.random.rand() - 0.5) * self.noise_perc * self.range)
-                
-            # Check if result falls in exclusion zone
-            if abs(stim_ms - self.offset) > self.exclusion_width/2:
-                break
-            # Otherwise, try again with different random noise
-        else:
-            # If all attempts failed, send it to the excluded limit of the least represented side
-            stim_ms = self.offset - self.exclusion_width/2 if self.post_offset_nstim > self.pre_offset_nstim else self.offset + self.exclusion_width/2
-
-            print(f"Warning: Could not avoid exclusion zone after {max_attempts} attempts, set {stim_ms}")
-        
-        stim_ms = np.clip(stim_ms, self.offset - self.range/2, self.offset + self.range/2)
-        
-        model["stimulus"] = stim_ms
-
-        if stim_ms > self.offset:
-            self.post_offset_nstim += 1
-        else:
-            self.pre_offset_nstim += 1
-
-        self.stimuli_ms.append(stim_ms)
-        self.model_stim.append(model)
-        
-        return stim_ms
-
-    # accept 0/1 responses
-    # The 2AFC model will learn P(response=1) as a function of stimulus
-    # This should be monotonically increasing, with threshold at offset
-    def set(self, response, q_value=None, index=-1):
-
-        if response not in (0, 1):
-            print("WARNING, response_or_success value not valid")
-            return
-
-        if q_value is not None:
-            model = {"stimulus": q_value}
-            self.stimuli_ms.append(q_value)
-            self.model_stim.append(model)
-        else:
-            if not self.model_stim:
-                print("ERROR: No stimulus model available. Call get() first or provide q_value.")
-                return
-            model = self.model_stim[index]
-
-        self.engine.update(model, response)
-
-        # Calculate success based on stimulus position relative to offset
-        if (self.stimuli_ms[-1] > self.offset and response == 1) or (self.stimuli_ms[-1] < self.offset and response == 0):
-            success = 1
-        else:
-            success = 0
-
-        self.responses.append(response)
-        self.successes.append(success)
 
     def gausFit(self, binSize):
         """ Fit cumulative Gaussian to response data """
@@ -141,7 +71,7 @@ class BISAdopyWrapper:
         goodx       = [not math.isnan(y) for y in f]
         f           = np.asarray(f)[goodx]
         bins        = np.asarray(bins)[goodx]
-        
+
         # Fit cumulative Gaussian
         try:
             # Better initial guess: threshold at offset, sigma as reasonable fraction of range
@@ -154,7 +84,7 @@ class BISAdopyWrapper:
             # If fit fails, return mean and std of stimuli
             mu1 = np.mean(self.stimuli_ms)
             sigma1 = np.std(self.stimuli_ms)
-        
+
         return mu1, abs(sigma1)  # Ensure sigma is positive
 
     def plot_psychometric(self, outfile_name, binSize=10):
@@ -193,38 +123,61 @@ class BISAdopyWrapper:
         plt.grid(True, alpha=0.3)
 
         plt.savefig(outfile_name, bbox_inches='tight')
-        plt.show()
+        plt.close()
 
         return mu1, sigma1
-    
+
     def print_statistics(self):
-        """ Print statistics about collected data """
+        """
+        Calculate and return statistics about collected data as a dictionary.
+        
+        Returns:
+            Dictionary with statistics or empty dict if no data
+        """
+        stats = {}
+        
         if len(self.stimuli_ms) == 0:
             print("No data collected yet")
-            return
+            return stats
         
         stimuli = np.array(self.stimuli_ms)
         below_offset = stimuli < self.offset
         above_offset = stimuli > self.offset
         
-        print("\n" + "="*50)
-        print("EXPERIMENT STATISTICS")
-        print("="*50)
-        print(f"Total trials: {len(stimuli)}")
-        print(f"Offset (true threshold): {self.offset} ms")
-        print(f"\nStimulus distribution:")
-        print(f"  Below {self.offset}ms: {np.sum(below_offset)} trials ({100*np.sum(below_offset)/len(stimuli):.1f}%)")
-        print(f"  Above {self.offset}ms: {np.sum(above_offset)} trials ({100*np.sum(above_offset)/len(stimuli):.1f}%)")
-        print(f"\nStimulus range: {stimuli.min():.1f} - {stimuli.max():.1f} ms")
-        print(f"Mean stimulus: {stimuli.mean():.1f} ms")
-        print(f"Median stimulus: {np.median(stimuli):.1f} ms")
-        print(f"Std deviation: {stimuli.std():.1f} ms")
+        stats['total_trials'] = len(stimuli)
+        stats['offset'] = self.offset
+        stats['trials_below_offset'] = int(np.sum(below_offset))
+        stats['trials_above_offset'] = int(np.sum(above_offset))
+        stats['pct_below_offset'] = float(100 * np.sum(below_offset) / len(stimuli))
+        stats['pct_above_offset'] = float(100 * np.sum(above_offset) / len(stimuli))
+        stats['stim_min'] = float(stimuli.min())
+        stats['stim_max'] = float(stimuli.max())
+        stats['stim_mean'] = float(stimuli.mean())
+        stats['stim_median'] = float(np.median(stimuli))
+        stats['stim_std'] = float(stimuli.std())
         
         if len(self.successes) > 0:
             successes = np.array(self.successes)
-            print(f"\nResponse accuracy: {100*successes.mean():.1f}%")
+            stats['response_accuracy'] = float(100 * successes.mean())
         
+        # Print for console visibility
+        print("\n" + "="*50)
+        print("EXPERIMENT STATISTICS")
+        print("="*50)
+        print(f"Total trials: {stats['total_trials']}")
+        print(f"Offset (true threshold): {stats['offset']} ms")
+        print(f"\nStimulus distribution:")
+        print(f"  Below {stats['offset']}ms: {stats['trials_below_offset']} trials ({stats['pct_below_offset']:.1f}%)")
+        print(f"  Above {stats['offset']}ms: {stats['trials_above_offset']} trials ({stats['pct_above_offset']:.1f}%)")
+        print(f"\nStimulus range: {stats['stim_min']:.1f} - {stats['stim_max']:.1f} ms")
+        print(f"Mean stimulus: {stats['stim_mean']:.1f} ms")
+        print(f"Median stimulus: {stats['stim_median']:.1f} ms")
+        print(f"Std deviation: {stats['stim_std']:.1f} ms")
+        if 'response_accuracy' in stats:
+            print(f"\nResponse accuracy: {stats['response_accuracy']:.1f}%")
         print("="*50 + "\n")
+        
+        return stats
 
     def get_simulated_response(self, model, design):
         # Compute a probability to respond positively.
