@@ -57,9 +57,13 @@ object Versions {
     const val rxandroid = "2.1.1"
 //    const val sunmail = "1.6.7"
 
+    const val kotlin_reflect = "1.7.20"
+
     const val junit = "4.13.2"
     const val testRunner = "1.5.2"
     const val testEspressoCore = "3.6.1"
+    const val junitExt = "1.1.5"
+
 }
 
 object Dependencies {
@@ -91,6 +95,8 @@ object Dependencies {
 
         const val testRunner        = "androidx.test:runner:${Versions.testRunner}"
         const val testEspressoCore  = "androidx.test.espresso:espresso-core:${Versions.testEspressoCore}"
+        const val junitExt          = "androidx.test.ext:junit:${Versions.junitExt}"
+
     }
 
     object Kotlin {
@@ -110,12 +116,6 @@ object Dependencies {
         const val rxrelay   = "com.jakewharton.rxrelay2:rxrelay:${Versions.rxandroid}"
         const val rxkotlin  = "io.reactivex.rxjava2:rxkotlin:${Versions.rxkotlin}"
     }
-
-//    object sunmail {
-//        const val mail          = "com.sun.mail:android-mail:${Versions.sunmail}"
-//        const val activation    = "com.sun.mail:android-activation:${Versions.sunmail}"
-//    }
-
 
     const val junit         = "junit:junit:${Versions.junit}"
 }
