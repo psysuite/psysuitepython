@@ -22,6 +22,11 @@ class BISRelADOpyWrapper(BISADOpyWrapper):
 
         stim_q = np.clip(stim_q, self.min, self.max)  # clip stimulus
 
+        # If frame_ms is provided, round to nearest multiple
+        if self.frame_ms is not None:
+            stim_q = round(stim_q / self.frame_ms) * self.frame_ms
+            stim_q = np.clip(stim_q, self.min, self.max)
+
         return stim_q
 
     def set(self, success, response, q_value, stim_value):

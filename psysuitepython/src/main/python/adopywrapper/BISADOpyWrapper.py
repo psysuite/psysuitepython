@@ -12,7 +12,7 @@ from scipy.stats import bernoulli
 # base class for temporal bisection task
 class BISADOpyWrapper:
 
-    def __init__(self, adoparams=None, taskparams=None):
+    def __init__(self, adoparams=None, taskparams=None, frame_ms=None):
 
         self.min            = taskparams.get("min", 150)
         self.max            = taskparams.get("max", 850)
@@ -20,6 +20,7 @@ class BISADOpyWrapper:
         self.offset         = taskparams.get("offset", 500)
 
         self.range          = self.max - self.min
+        self.frame_ms       = frame_ms
 
         self.guess_rate = adoparams["guess_rate"]
         self.lapse_rate = adoparams["lapse_rate"]
@@ -34,13 +35,18 @@ class BISADOpyWrapper:
         self.task   = Task2AFC()
         self.model  = ModelLogistic()
 
-        # Create continuous stimulus design space (no exclusion zone)
+        # Create continuous stimulus design space
+        if frame_ms is not None:
+            # Frame-aligned grid: points spaced by frame_ms
+            grid = np.arange(self.min, self.max + frame_ms, frame_ms)
+            if len(grid) < 2:
+                raise ValueError(f"frame_ms produces a grid with less than 2 points")
+        else:
+            # Default: linspace with 200 points
+            grid = np.linspace(self.min, self.max, 200)
+        
         self.designs = {
-            'stimulus': np.linspace(
-                self.min,
-                self.max,
-                200
-            )
+            'stimulus': grid
         }
         self.params = {
             'guess_rate': [self.guess_rate],

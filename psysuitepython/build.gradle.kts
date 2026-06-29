@@ -1,37 +1,37 @@
 plugins {
-    id(Plugins.androidLibrary)
-    id(Plugins.kotlinAndroid)
-    id(Plugins.chaquopy)
+    id(libs.plugins.android.library.get().pluginId)
+    id(libs.plugins.kotlin.android.get().pluginId)
+    id(libs.plugins.kotlin.parcelize.get().pluginId)
+    id(libs.plugins.chaquopy.get().pluginId)
 }
 
 android {
-
-    namespace = Configs.psysuitepythonnamespace
     compileSdk = Configs.compileSdkVersion
-
-    lint {  }
+    namespace = Configs.psysuitepythonnamespace
 
     defaultConfig {
         minSdk = Configs.minSdkVersion
         targetSdk = Configs.targetSdkVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
         ndk {
-            //noinspection ChromeOsAbiSupport
             abiFilters += listOf("arm64-v8a")
         }
     }
 
     buildTypes {
-        release {
+        getByName("release") {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile(ProGuards.proguardTxt), ProGuards.androidDefault)
-
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 
     kotlinOptions {
@@ -49,16 +49,14 @@ chaquopy {
             install("adopy")
         }
     }
-    //productFlavors { }    sourceSets { }
 }
 
 dependencies {
-
-    implementation(Dependencies.Kotlin.reflect)
-    implementation(Dependencies.AndroidX.ktxCore)
-    implementation(Dependencies.AndroidX.appCompat)
-    implementation(Dependencies.AndroidX.material)
-    testImplementation(Dependencies.junit)
-    androidTestImplementation(Dependencies.AndroidX.junitExt)
-    androidTestImplementation(Dependencies.AndroidX.testEspressoCore)
+    implementation(libs.kotlin.reflect.legacy)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.material)
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.junit.ext)
+    androidTestImplementation(libs.androidx.test.espresso.core)
 }
