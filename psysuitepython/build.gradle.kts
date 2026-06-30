@@ -26,8 +26,9 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        val javaVer = JavaVersion.toVersion(rootProject.ext["javaVersion"] as String)
+        sourceCompatibility = javaVer
+        targetCompatibility = javaVer
     }
 
     buildFeatures {
@@ -35,7 +36,7 @@ android {
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        jvmTarget = rootProject.ext["javaVersion"] as String
     }
 }
 
