@@ -42,7 +42,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.10"
+        version = libs.versions.chaquopyVersion.get()
         pip {
             install("matplotlib")
             install("numpy==1.23.3")
